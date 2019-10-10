@@ -18,6 +18,17 @@ Blink the blue LED on the ESP8266 module
 
 int potBits = 0;
 
+byte Seg_Array[10][7] = {   //A B C D E F G
+                            { 0,0,0,0,0,0,1 },    // 0
+                            { 1,0,0,1,1,1,1 },    // 1
+                            { 0,0,1,0,0,1,0 },    // 2
+                            { 0,0,0,0,1,1,0 },    // 3
+                            { 1,0,0,1,1,0,0 },    // 4
+                            { 0,1,0,0,1,0,0 },    // 5
+                            { 0,1,0,0,0,0,0 },    // 6
+                            { 0,0,0,1,1,1,1 },    // 7
+                            { 0,0,0,0,0,0,0 },    // 8
+                            { 0,0,0,1,1,0,0 }};   // 9
 void setup() {
 
 pinMode(LED, OUTPUT); // Initialize the LED pin as an output
@@ -44,10 +55,16 @@ void loop() {
   //SevenSegPrint(DIG1, 9);
 }
 
+void refreshDisplay(int digit1, int digit0){
+
+}
+
 void SevenSegPrint(int digit, int number){
   digitalWrite(digit, LOW);
   int pin = 2;
-  int num_array[10][7] = {  { 0,0,0,0,0,0,1 },    // 0
+
+  int num_array[10][7] = {  //A B C D E F G
+                            { 0,0,0,0,0,0,1 },    // 0
                             { 1,0,0,1,1,1,1 },    // 1
                             { 0,0,1,0,0,1,0 },    // 2
                             { 0,0,0,0,1,1,0 },    // 3
@@ -57,16 +74,7 @@ void SevenSegPrint(int digit, int number){
                             { 0,0,0,1,1,1,1 },    // 7
                             { 0,0,0,0,0,0,0 },    // 8
                             { 0,0,0,1,1,0,0 }};   // 9
-  /*int num_array[10][7] = {  { 1,1,1,1,1,1,0 },    // 0
-                          { 0,1,1,0,0,0,0 },    // 1
-                          { 1,1,0,1,1,0,1 },    // 2
-                          { 1,1,1,1,0,0,1 },    // 3
-                          { 0,1,1,0,0,1,1 },    // 4
-                          { 1,0,1,1,0,1,1 },    // 5
-                          { 1,0,1,1,1,1,1 },    // 6
-                          { 1,1,1,0,0,0,0 },    // 7
-                          { 1,1,1,1,1,1,1 },    // 8
-                          { 1,1,1,0,0,1,1 }};   // 9*/
+
   for(int i=0; i<7; i++){
     digitalWrite(pin, num_array[number][i]);
     pin++;
