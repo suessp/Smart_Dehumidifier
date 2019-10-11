@@ -1,23 +1,48 @@
+#include <ESP8266WiFi.h>
 
 
-#define LED 2 //Define blinking LED pin
-#define POT A0
+static const uint8_t D0   = 16;
+static const uint8_t D1   = 5;
+static const uint8_t D2   = 4;
+static const uint8_t D3   = 0;
+static const uint8_t D4   = 2;
+static const uint8_t D5   = 14;
+static const uint8_t D6   = 12;
+static const uint8_t D7   = 13;
+static const uint8_t D8   = 15;
+static const uint8_t D9   = 3;
+static const uint8_t D10  = 1;
 
-#define DIG1 D0
-#define DIG2 D1
-#define A D2
-#define B D3
-#define C D4
-#define D D5
-#define E D6
-#define F D7
-#define G D8
-#define BUTTON GPIO 1
-int potValue = 0;
+
+
+#define ANALOG A0     //analog read pin
+
+#define DIG1 D0       //output pin for seven seg digit 1 enable
+#define DIG2 D1       //output pin for seven seg digit 2 enable
+#define RELAY D2      //output pin for relay signal
+#define A_MUX D3      //output pin for both segment A and Mux select sig
+#define B_BUTTON D4   //output pin for segment B and input pin for interrupt button
+#define C D5          //output pin for segment C
+#define D D6          //output pin for segment D
+#define E D7          //output pin for segment E
+#define F D8          //output pin for segment F
+#define WLEVEL D9     //interrupt pin for water level circuit
+#define G D10         //output pin for segment G
+
 
 volatile bool setFlag = false;
 
-int segPins[] = {A, B, C, D, E, F, G};
+
+
+const char* ssid0 = "FlavorTown";
+const char* ssid1 = "FlavorTown_EXT";
+const char* password = "tim3tooilup";
+
+int targetHumidity = 0; 
+
+//Manual override variables. Used to manually override target humidity using a potentiometer and seven seg display
+int potValue = 0;
+int segPins[] = {A_MUX, B_BUTTON, C, D, E, F, G};
 byte seg_Array[10][7] = {   //A B C D E F G
                             { 0,0,0,0,0,0,1 },    // 0
                             { 1,0,0,1,1,1,1 },    // 1
@@ -29,20 +54,46 @@ byte seg_Array[10][7] = {   //A B C D E F G
                             { 0,0,0,1,1,1,1 },    // 7
                             { 0,0,0,0,0,0,0 },    // 8
                             { 0,0,0,1,1,0,0 }};   // 9
+int dig0 = 0;
+int dig1 = 0;
 void setup() {
 
-pinMode(LED, OUTPUT); // Initialize the LED pin as an output
-  pinMode(POT, INPUT);
+  pinMode(ANALOG, INPUT);
   pinMode(DIG1, OUTPUT);
   pinMode(DIG2, OUTPUT);
-  pinMode(A, OUTPUT);
-  pinMode(B, OUTPUT);
+  pinMode(A_MUX, OUTPUT);
+  pinMode(B_BUTTON, OUTPUT);
   pinMode(C, OUTPUT);
   pinMode(D, OUTPUT);
   pinMode(E, OUTPUT);
   pinMode(F, OUTPUT);
   pinMode(G, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(BUTTON), interrupt, RISING);  
+  attachInterrupt(digitalPinToInterrupt(B_BUTTON), interrupt, RISING);  
+  attachInterrupt(digitalPinToInterrupt(WLEVEL), reservoirFull, RISING);
+
+  int connectedCount = 1;
+  int startTime = 0;
+  int endTime;
+  int i=0, j=0;
+
+  WiFi.begin(ssid0, password);
+  
+  while (WiFi.status() != WL_CONNECTED){ //wait for connection to FlavorTown
+    refreshDisplay(dig1, dig0); 
+    endTime = millis();                  // increments the counter approximately once a second
+    if ((endTime - startTime) >= 1000){
+      connectedCount++;
+      startTime = endTime;
+    }
+    if(connectedCount >= 20){             //if 20 seconds have passed, attempt to connect to FlavorTown_EXT
+      connectedCount = 1;
+      WiFi.begin(ssid1, password);
+    }
+    dig0 = connectedCount%10;
+    dig1 = connectedCount/10;
+  }
+  
+
 }
 
 int startTime = 0;
@@ -51,31 +102,18 @@ int i = 0, j = 0;
 int d1 =0, d2 = 0;
 // the loop function runs over and over again forever
 void loop() {
-
-  for(int i=0; i<32; i++){
-    potValue += analogRead(POT);
+  while(setFlag){
+    readPot();
+    refreshDisplay(dig1, dig0);
   }
-  potValue = potValue/32;
-  potValue = map(analogRead(POT), 1, 1023, 0, 99);
-  d1 = potValue%10;
-  d2 = potValue/10;
-  refreshDisplay(d2, d1);
 
-   endTime = millis();                  // increments the counter approximately once a second
-   if ((endTime - startTime) >= 1000)
-   {
-      potValue = potValue/32;
-      potValue = map(analogRead(POT), 1, 1023, 0, 99);
-      d1 = potValue%10;
-      d2 = potValue/10;
-   }
-  delay(10);
-  refreshDisplay(d2, d1);
+
 }
 
 
 //implements digit multiplexing
 void refreshDisplay(int digit1,int digit0){
+  pinMode(B_BUTTON, OUTPUT);
   digitalWrite(DIG1, LOW);                   //display digit 1
   digitalWrite(DIG2, HIGH);
   setSevenSeg(digit0);
@@ -87,6 +125,7 @@ void refreshDisplay(int digit1,int digit0){
   }
   setSevenSeg(digit1);
   delay(5);
+  pinMode(B_BUTTON, INPUT);
 }
 
 //sets segment pins
@@ -105,4 +144,20 @@ void interrupt(){
   else{
     setFlag = true;
   }
+}
+
+void readPot(){
+  digitalWrite(A_MUX, HIGH);
+  float alpha = 0.6;
+  int potValue = analogRead(ANALOG);
+  potValue = (alpha*potValue) + ((1-alpha)*potValue);
+  map(potValue, 1, 1023, 0, 99);
+  targetHumidity = potValue;
+  dig0 = potValue%10;
+  dig1 = potValue/10;
+  digitalWrite(A_MUX, LOW);
+}
+
+void reservoirFull(){
+
 }
